@@ -26,8 +26,21 @@ import SchedulePage from "../section/schedules"
 import EscalationPage from "../section/escalation"
 import EscalationFormPage from "../section/escalationPolicyForm"
 import AiInsightsPage from "../section/aiInsights"
+import C4D from "../../c4d.webp";
 
-
+const Home = () => {
+  return <div className="grid justify-center item-center w-full">
+      <br/>
+      <br/>
+      <br/>
+      <div className="text-center" style={{fontSize:"25px"}}>Welcome to <strong>Call4Duty</strong>!</div>
+      <div className="text-center" style={{fontSize:"15px"}}>Always on Duty</div>
+      <br/>
+      <img src={C4D}></img>
+      <br/>
+      <div className="text-center" style={{fontStyle:"italic"}}>Powered by <strong>VoiceConnect</strong></div>
+  </div>
+}
 
 
 export default function Page() {
@@ -105,7 +118,7 @@ export default function Page() {
         <div className={`flex flex-1 flex-col gap-4 p-4 ${theme=="light" ? "text-black":"text-white"}`}>
           <BrowserRouter>
             <Routes>
-              <Route path='/' element={<div>Welcome! choose option from sidebar </div>}/>
+              <Route path='/' element={<Home/>}/>
               <Route path='/incidents' element={<IncidentPage/>} />
               <Route path='/postmartum/:id' element={<PostmartumPage/>} />
               <Route path='/insights' element={<InsightsPage/>} />

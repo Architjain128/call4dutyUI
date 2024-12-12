@@ -100,12 +100,12 @@ const IncidentPage: React.FC = () => {
   const preprocessData = useCallback((fetchedData, services, teamData) => {
     if (!fetchedData || !services || !teamData) return [];
 
-    return fetchedData.map((x) => {
+    let tmpData = fetchedData.map((x) => {
       const service = services.find((z) => 
         x.currentAssignment?.impactedServiceId === z.id
       );
       const team = teamData.find((z) => 
-        x.id === service.teamId
+        z.id === service?.teamId
       );
 
       return {
@@ -117,7 +117,10 @@ const IncidentPage: React.FC = () => {
         status: x.status,
         team: team?.name || 'Unknown', // Add team logic if needed
       };
+      
     });
+    tmpData.sort((a,b)=>{return b.createdAt - a.createdAt})
+    return tmpData
   }, []); // Empty dependency array
 
   // Use a single useEffect with a flag to prevent multiple fetches

@@ -212,7 +212,7 @@ const AiInsightsPage: React.FC = () => {
            <br/>
         </div>
         <div>
-            <Card className="pt-4 bg-cyan-50 ">
+            <Card className="pt-4 bg-cyan-50 mb-6">
                 <CardContent>
                     <CardTitle  className="mb-2 text-cyan-800">AI Prediction for next 7 coming day</CardTitle>
                     <CardDescription className="mb-1 text-cyan-600">
@@ -224,7 +224,7 @@ const AiInsightsPage: React.FC = () => {
                 </CardContent>
             </Card>
         </div>
-        <div className="flex gap-4 p-2">
+        {/* <div className="flex gap-4 p-2">
             <div>
                 <Label>Teams</Label>
                 <Select onValueChange={(value)=>setSelectedTeam(value)} defaultValue={selectedTeam}>
@@ -269,7 +269,7 @@ const AiInsightsPage: React.FC = () => {
                     </SelectContent>
                 </Select>
             </div>
-        </div>
+        </div> */}
 
 
         <Card className="p-2 m-2 mb-4">

@@ -141,7 +141,7 @@ export default function EscalationFormPage({newEntry} : EscalationFormPageProps)
                   newEP.levels.map(async(yy,idx)=>{
                     let el={
                         escalationPolicyId: policyId,
-                        level: idx,
+                        level: idx+1,
                         scheduleId: yy.scheduleId
                     }
 

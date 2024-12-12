@@ -1,7 +1,7 @@
 import { Incidents, readOnlyColumns } from "./columns"
 import Loader from "@/components/loader";
 import { Line, LineChart, CartesianGrid, XAxis, YAxis, Tooltip  } from "recharts"
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import {
     Select,
     SelectContent,
@@ -71,30 +71,159 @@ const InsightsPage: React.FC = () => {
   const [selectedTeam, setSelectedTeam] = useState(" ");
   const [selectedService, setSelectedService] = useState(" ");
   const [selectedPriority, setSelectedPriority] = useState(" ");
+  const [userOptions, setUserOptions] = useState<any[]>([]);
+  const [escalationPolicyOptions, setEscalationPolicyOptions] = useState<any[]>([]);
+  const [teamData, setTeamData] = useState<any[]>([]);
+  const [userData, setUserData] = useState<any[]>([]);
+  const [epData, setEpData] = useState<any[]>([]);
+  const [serviceData, setServiceData] = useState<any[]>([]);
+  const [up, setUp] = useState("");
 
+  // Memoize fetch functions to prevent recreation on every render
+  const fetchEpData = useCallback(async () => {
+    try {
+      const response = await fetch("https://qa6-call-for-duty-global.sprinklr.com/api/pager/escalation-policies/all");
+      const result = await response.json();
+      setEpData(result);
+      return result;
+    } catch (error) {
+      console.error("Error fetching escalation policies:", error);
+      return [];
+    }
+  }, []); // Empty dependency array
+
+  const fetchTeamData = useCallback(async () => {
+    try {
+      const response = await fetch("https://qa6-call-for-duty-global.sprinklr.com/api/pager/teams/all");
+      const result = await response.json();
+      setTeamData(result);
+      return result;
+    } catch (error) {
+      console.error("Error fetching teams:", error);
+      return [];
+    }
+  }, []); // Empty dependency array
+
+  const fetchServicesData = useCallback(async () => {
+    try {
+      const response = await fetch("https://qa6-call-for-duty-global.sprinklr.com/api/pager/services/all");
+      const result = await response.json();
+      setServiceData(result);
+      return result;
+    } catch (error) {
+      console.error("Error fetching services:", error);
+      return [];
+    }
+  }, []); // Empty dependency array
+
+  const fetchData = useCallback(async () => {
+    try {
+      const response = await fetch("https://qa6-call-for-duty-global.sprinklr.com/api/pager/incidents/all");
+      const result = await response.json();
+      return result;
+    } catch (error) {
+      console.error("Error fetching incidents:", error);
+      return [];
+    }
+  }, []); // Empty dependency array
+
+  // Memoize preprocessing to prevent unnecessary recalculations
+  const preprocessData2 = useCallback((fetchedData, services, teamData) => {
+    if (!fetchedData || !services || !teamData) return [];
+
+    let tmpData = fetchedData.map((x) => {
+      const service = services.find((z) => 
+        x.currentAssignment?.impactedServiceId === z.id
+      );
+      console.log(service)
+      const team = teamData.find((z) => 
+        z.id === service?.teamId
+      );
+
+      return {
+        id: x.id,
+        title: x.title,
+        service: service?.name || 'Unknown',
+        createdAt: x.createdTime,
+        priority: x.priority, // Add priority logic if needed
+        status: x.status,
+        team: team?.name || 'Unknown', // Add team logic if needed
+      };
+    });
+    let teams = Array.from(new Set(data.map((item) => item.team)))
+    let services3 = Array.from(new Set(data.map((item) => item.service)))
+    let priority = Array.from(new Set(data.map((item) => item.priority)))
+    setData(data);
+    setTeamsTotal(teams);
+    setServicesTotal(services3);
+    setPriorityTotal(priority);
+    console.log(tmpData)
+    return tmpData
+  }, []); // Empty dependency array
+
+  // Use a single useEffect with a flag to prevent multiple fetches
   useEffect(() => {
-    const fetchData = async () => {
+    let isMounted = true;
+
+    const fetchAllData = async () => {
       try {
-        // const response = await fetch("/api/incidents"); // Example API call
-        // const result = await response.json();
-        // setData(result);
-        const data = await getData()
-        let teams = Array.from(new Set(data.map((item) => item.team)))
-        let services = Array.from(new Set(data.map((item) => item.service)))
-        let priority = Array.from(new Set(data.map((item) => item.priority)))
-        setData(data);
-        setTeamsTotal(teams);
-        setServicesTotal(services);
-        setPriorityTotal(priority);
+        setLoading(true);
+        
+        // Fetch all data concurrently
+        const [incidentData, , servicesData, teamData] = await Promise.all([
+          fetchData(),
+          fetchEpData(),
+          fetchServicesData(),
+          fetchTeamData()
+        ]);
+
+        // Only update state if component is still mounted
+        if (isMounted) {
+          const processedData = preprocessData2(incidentData, servicesData, teamData);
+          setData(processedData);
+          setLoading(false);
+        }
       } catch (error) {
-        console.error("Error fetching data:", error);
-      } finally {
-        setLoading(false);
+        console.error("Error in data fetching:", error);
+        if (isMounted) {
+          setLoading(false);
+        }
       }
     };
 
-    fetchData();
+    fetchAllData();
+
+    // Cleanup function to prevent state updates on unmounted component
+    return () => {
+      isMounted = false;
+    };
   }, []);
+
+
+
+//   useEffect(() => {
+//     const fetchData = async () => {
+//       try {
+//         // const response = await fetch("/api/incidents"); // Example API call
+//         // const result = await response.json();
+//         // setData(result);
+//         const data = await getData()
+//         let teams = Array.from(new Set(data.map((item) => item.team)))
+//         let services = Array.from(new Set(data.map((item) => item.service)))
+//         let priority = Array.from(new Set(data.map((item) => item.priority)))
+//         setData(data);
+//         setTeamsTotal(teams);
+//         setServicesTotal(services);
+//         setPriorityTotal(priority);
+//       } catch (error) {
+//         console.error("Error fetching data:", error);
+//       } finally {
+//         setLoading(false);
+//       }
+//     };
+
+//     fetchData();
+//   }, []);
 
 
   useEffect(()=>{
