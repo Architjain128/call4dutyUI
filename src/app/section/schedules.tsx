@@ -38,36 +38,57 @@ const SchedulePage: React.FC = () => {
   const [newScheduleName, setNewScheduleName] = useState<string>("");
   const [newScheduleDescription, setNewScheduleDescription] = useState<string>("");
   const [newOnCallUserId, setNewOnCallUserId] = useState<string>("");
-  const [newOnCallRotationDays, setNewOnCallRotationDays] = useState<number>(7);
+  const [newOnCallRotationDays, setNewOnCallRotationDays] = useState<string>("7");
   const [newIsRoundRobin, setNewIsRoundRobin] = useState<boolean>(false);
   const [newScheduleUsers, setNewScheduleUsers] = useState<string[]>([]);
+  const [userData, setUserData] = useState([])
+  const[up,setUp]= useState("")
 
+  const fetchData = async () => {
+    try {
+      const response = await fetch("https://qa6-call-for-duty-global.sprinklr.com/api/pager/schedules/all"); // Example API call
+      const result = await response.json();
+      console.log(result)
+      setData(result);
+    } catch (error) {
+      console.error("Error fetching data:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
 
-  useEffect(() => {
-    const fetchData = async () => {
-      try {
-        // const response = await fetch("/api/incidents"); // Example API call
-        // const result = await response.json();
-        // setData(result);
-        // const data = await getData()
-        setData(data);
-      } catch (error) {
-        console.error("Error fetching data:", error);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchData();
+  const fetchUserData = async () => {
+    try {
+      const response = await fetch("https://qa6-call-for-duty-global.sprinklr.com/api/pager/users/all"); // Example API call
+      const result = await response.json();
+      setUserData(result);
 
     let newUserOptions = []
-    users.forEach((x)=>{
+    result.forEach((x)=>{
         newUserOptions.push({label:x.name, value:x.id})
     })
     setUserOption(newUserOptions)
 
 
+
+    } catch (error) {
+      console.error("Error fetching data:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchData();
+    fetchUserData();
   }, []);
+
+
+  useEffect(() => {
+    fetchData();
+    fetchUserData();
+
+  }, [up]);
 
 
   useEffect(()=>{
@@ -126,7 +147,7 @@ const SchedulePage: React.FC = () => {
                             <Label htmlFor="name" className="text-right">
                             On Call Rotation Period (Days)
                             </Label>
-                            <Input id="name" className="col-span-3" value={newOnCallRotationDays} onChange={(e)=>setNewOnCallRotationDays(parseInt(e.target.value))} />
+                            <Input id="name" className="col-span-3" value={newOnCallRotationDays} onChange={(e)=>setNewOnCallRotationDays(e.target.value)} />
                         </div>
                         <div className="grid grid-cols-4 items-center gap-4">
                             <Label htmlFor="name" className="text-right">
@@ -152,7 +173,7 @@ const SchedulePage: React.FC = () => {
                                 <MultipleSelector options={userOptions} value={newScheduleUsers} setValue={setNewScheduleUsers}/>
                             </div>
                         </div>
-                        { newScheduleUsers.length > 0?
+                        { newScheduleUsers && newScheduleUsers.length > 0?
                         <div className="grid grid-cols-4 items-center gap-4">
                             <Label htmlFor="name" className="text-right">
                             On Call
@@ -164,7 +185,7 @@ const SchedulePage: React.FC = () => {
                                 </SelectTrigger>
                                 <SelectContent>
                                     {
-                                        users.map((x)=>{
+                                        userData.map((x)=>{
                                             if(newScheduleUsers.filter((y)=>y===x.id).length > 0)
                                             return <SelectItem value={x.id}>{x.name}</SelectItem>
                                         })
@@ -178,16 +199,39 @@ const SchedulePage: React.FC = () => {
                         </div>
                         <DialogFooter>
                         <DialogClose asChild>
-                        <Button type="submit" onClick={()=>{
+                        <Button type="submit" onClick={async()=>{
                             let newTeamData = {
                                 name: newScheduleName,
                                 description: newScheduleDescription,
                                 onCallUserId: newOnCallUserId,
-                                onCallRotationDays: newOnCallRotationDays,
+                                onCallRotationDays: parseInt(newOnCallRotationDays),
                                 roundRobin: newIsRoundRobin,
-                                users: newScheduleUsers
+                                userIds: newScheduleUsers
                             }
                             console.log("new schedule", newTeamData)
+
+                            await fetch("https://qa6-call-for-duty-global.sprinklr.com/api/pager/schedules", {
+                                method: 'POST',
+                                headers: {
+                                  'Content-Type': 'application/json',
+                                },
+                                body: JSON.stringify(newTeamData), // Convert data to JSON string
+                              })
+                                .then(response => {
+                                  if (!response.ok) {
+                                    throw new Error(`HTTP error! Status: ${response.status}`);
+                                  }
+                                  return response.json(); // Parse the JSON response
+                                })
+                                .then(data => {
+                                  console.log("Response data:", data);
+                                    setUp(new Date().toLocaleTimeString())
+
+                                })
+                                .catch(error => {
+                                  console.error('Error:', error);
+                                });
+
                         }}>Create</Button>
                         </DialogClose>
                         </DialogFooter>
@@ -209,14 +253,14 @@ const SchedulePage: React.FC = () => {
                     </TableHeader>
                     <TableBody>
                         {
-                            schedules.map((x)=>{
+                            data.map((x)=>{
                                 return (
                                     <TableRow>
                                         <TableCell className="font-medium">{x.name}</TableCell>
                                         <TableCell className="font-medium">{x.description}</TableCell>
-                                        <TableCell className="font-medium">{x.onCallUserId}</TableCell>
+                                        <TableCell className="font-medium">{userData.filter((y)=>{return y.id===x.onCallUserId}).length > 0 ? userData.filter((y)=>{return y.id===x.onCallUserId})[0].name : "UNKNOWN"  }</TableCell>
                                         <TableCell className="font-medium">{x.onCallRotationDays} days {x.roundRobin?" | Round Robin":""}</TableCell>
-                                        <TableCell>{x.users.map((y)=>{return <Badge className="m-1">{y}</Badge>})}</TableCell>
+                                        <TableCell>{x.userIds.map((y)=>{return <Badge className="m-1">{userData.filter((z)=>{return z.id===y}).length > 0 ? userData.filter((z)=>{return z.id===y})[0].name : "UNKNOWN"}</Badge>})}</TableCell>
                                         <TableCell className="text-right">
                                             <Dialog>
                                                 <DialogTrigger asChild>
@@ -227,7 +271,7 @@ const SchedulePage: React.FC = () => {
                                                         setNewOnCallUserId(x.onCallUserId)
                                                         setNewOnCallRotationDays(x.onCallRotationDays)
                                                         setNewIsRoundRobin(x.roundRobin)
-                                                        setNewScheduleUsers(x.users)
+                                                        setNewScheduleUsers(x.userIds)
                                                     }}
                                                 > Edit </Button>
                                                 </DialogTrigger>
@@ -255,7 +299,7 @@ const SchedulePage: React.FC = () => {
                                                         <Label htmlFor="name" className="text-right">
                                                         On Call Rotation Period (Days)
                                                         </Label>
-                                                        <Input id="name" className="col-span-3" value={newOnCallRotationDays} onChange={(e)=>setNewOnCallRotationDays(parseInt(e.target.value))} />
+                                                        <Input id="name" className="col-span-3" value={newOnCallRotationDays} onChange={(e)=>setNewOnCallRotationDays(e.target.value)} />
                                                     </div>
                                                     <div className="grid grid-cols-4 items-center gap-4">
                                                         <Label htmlFor="name" className="text-right">
@@ -281,7 +325,7 @@ const SchedulePage: React.FC = () => {
                                                             <MultipleSelector options={userOptions} value={newScheduleUsers} setValue={setNewScheduleUsers}/>
                                                         </div>
                                                     </div>
-                                                    { newScheduleUsers.length > 0?
+                                                    { newScheduleUsers && newScheduleUsers.length > 0?
                                                     <div className="grid grid-cols-4 items-center gap-4">
                                                         <Label htmlFor="name" className="text-right">
                                                         On Call
@@ -293,7 +337,7 @@ const SchedulePage: React.FC = () => {
                                                             </SelectTrigger>
                                                             <SelectContent>
                                                                 {
-                                                                    users.map((x)=>{
+                                                                    userData.map((x)=>{
                                                                         if(newScheduleUsers.filter((y)=>y===x.id).length > 0)
                                                                         return <SelectItem value={x.id}>{x.name}</SelectItem>
                                                                     })
@@ -306,17 +350,39 @@ const SchedulePage: React.FC = () => {
                                                     </div>
                                                     <DialogFooter>
                                                     <DialogClose asChild>
-                                                    <Button type="submit" onClick={()=>{
+                                                    <Button type="submit" onClick={async()=>{
                                                         let newTeamData = {
                                                             id: x.id,
                                                             name: newScheduleName,
                                                             description: newScheduleDescription,
                                                             onCallUserId: newOnCallUserId,
-                                                            onCallRotationDays: newOnCallRotationDays,
+                                                            onCallRotationDays: parseInt(newOnCallRotationDays),
                                                             roundRobin: newIsRoundRobin,
                                                             users: newScheduleUsers
                                                         }
                                                         console.log("edit schedule", newTeamData)
+
+                                                        await fetch("https://qa6-call-for-duty-global.sprinklr.com/api/pager/schedules/"+x.id, {
+                                                            method: 'PATCH',
+                                                            headers: {
+                                                              'Content-Type': 'application/json',
+                                                            },
+                                                            body: JSON.stringify(newTeamData), // Convert data to JSON string
+                                                          })
+                                                            .then(response => {
+                                                              if (!response.ok) {
+                                                                throw new Error(`HTTP error! Status: ${response.status}`);
+                                                              }
+                                                              return response.json(); // Parse the JSON response
+                                                            })
+                                                            .then(data => {
+                                                              console.log("Response data:", data);
+                                                                setUp(new Date().toLocaleTimeString())
+                            
+                                                            })
+                                                            .catch(error => {
+                                                              console.error('Error:', error);
+                                                            });
                                                     }}>Save changes</Button>
                                                     </DialogClose>
                                                     </DialogFooter>
@@ -338,7 +404,27 @@ const SchedulePage: React.FC = () => {
                                                     </DialogHeader>
                                                     <DialogFooter>
                                                     <DialogClose asChild>
-                                                        <Button type="submit" onClick={()=>{console.log(x.id)}}>Confirm</Button>
+                                                        <Button type="submit" onClick={async()=>{
+                                                            console.log(x.id)
+                                                            await fetch("https://qa6-call-for-duty-global.sprinklr.com/api/pager/schedules/"+x.id, {
+                                                                method: 'DELETE',
+                                                                headers: {
+                                                                  'Content-Type': 'application/json',
+                                                                },
+                                                              })
+                                                                .then(response => {
+                                                                  if (!response.ok) {
+                                                                    throw new Error(`HTTP error! Status: ${response.status}`);
+                                                                  }
+                                                                })
+                                                                .then(data => {
+                                                                  console.log("Response data:", data);
+                                                                  setUp(new Date().toLocaleTimeString())
+                                                                })
+                                                                .catch(error => {
+                                                                  console.error('Error:', error);
+                                                                });
+                                                            }}>Confirm</Button>
                                                     </DialogClose>
                                                     </DialogFooter>
                                                 </DialogContent>

@@ -2,7 +2,7 @@ import { Incidents, columns } from "./columns"
 import { DataTable } from "./data-table"
 import Loader from "@/components/loader";
 import React, { useState, useEffect } from "react";
-import { teams, users, escalationPolicies } from "../../data/dummydata";
+import { teams, escalationPolicies } from "../../data/dummydata";
 import { Table, TableHead, TableHeader, TableRow, TableCaption, TableCell, TableBody } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -24,6 +24,7 @@ import { Input } from "@/components/ui/input";
 import { MultipleSelector } from "@/components/ui/multi-selector";
 import { title } from "process";
 
+
 const UsersPage: React.FC = () => {
   const [data, setData] = useState<any>(null);
   const [loading, setLoading] = useState<boolean>(true);
@@ -32,24 +33,29 @@ const UsersPage: React.FC = () => {
   const [newUserPhoneNumber, setNewUserPhoneNumber] = useState("");
   const [newUserEmail, setNewUserEmail] = useState("");
   const [newUserRole, setNewUserRole] = useState("");
+  const [users, setUsers] = useState([])
+  const[up,setUp]= useState("")
+
+  const fetchData = async () => {
+    try {
+      const response = await fetch("https://qa6-call-for-duty-global.sprinklr.com/api/pager/users/all"); // Example API call
+      const result = await response.json();
+      setData(result);
+    } catch (error) {
+      console.error("Error fetching data:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
-    const fetchData = async () => {
-      try {
-        // const response = await fetch("/api/incidents"); // Example API call
-        // const result = await response.json();
-        // setData(result);
-        // const data = await getData()
-        setData(data);
-      } catch (error) {
-        console.error("Error fetching data:", error);
-      } finally {
-        setLoading(false);
-      }
-    };
-
     fetchData();
   }, []);
+
+
+  useEffect(() => {
+    fetchData();
+  }, [up]);
 
   if (loading) {
     return <Loader/>;
@@ -134,7 +140,7 @@ const UsersPage: React.FC = () => {
                             headers: {
                               'Content-Type': 'application/json',
                             },
-                            body: newUserData, // Convert data to JSON string
+                            body: JSON.stringify(newUserData), // Convert data to JSON string
                           })
                             .then(response => {
                               if (!response.ok) {
@@ -144,11 +150,13 @@ const UsersPage: React.FC = () => {
                             })
                             .then(data => {
                               console.log("Response data:", data);
+                              setUp(new Date().toLocaleTimeString())
                             })
                             .catch(error => {
                               console.error('Error:', error);
                             });
 
+                        
                     
                     }}>Save changes</Button>
                     </DialogClose>
@@ -170,7 +178,7 @@ const UsersPage: React.FC = () => {
                     </TableHeader>
                     <TableBody>
                         {
-                            users.map((x)=>{
+                            data.map((x)=>{
                                 return (
                                     <TableRow>
                                         <TableCell className="font-medium">{x.name}</TableCell>
@@ -232,9 +240,9 @@ const UsersPage: React.FC = () => {
                                                     </div>
                                                     <DialogFooter>
                                                     <DialogClose asChild>
-                                                    <Button type="submit" onClick={()=>{
+                                                    <Button type="submit" onClick={async()=>{
                                                         let newUserData = {
-                                                            id: x.id,
+                                                            // id: x.id,
                                                             name: newUserName,
                                                             title: newUserTitle,
                                                             phoneNumber: newUserPhoneNumber,
@@ -242,6 +250,28 @@ const UsersPage: React.FC = () => {
                                                             role: newUserRole
                                                         }
                                                         console.log("edit user", newUserData)
+
+                                                        await fetch("https://qa6-call-for-duty-global.sprinklr.com/api/pager/users/"+x.id, {
+                                                            method: 'PATCH',
+                                                            headers: {
+                                                              'Content-Type': 'application/json',
+                                                            },
+                                                            body: JSON.stringify(newUserData), // Convert data to JSON string
+                                                          })
+                                                            .then(response => {
+                                                              if (!response.ok) {
+                                                                throw new Error(`HTTP error! Status: ${response.status}`);
+                                                              }
+                                                              return response.json(); // Parse the JSON response
+                                                            })
+                                                            .then(data => {
+                                                              console.log("Response data:", data);
+                                                              setUp(new Date().toLocaleTimeString())
+                                                            })
+                                                            .catch(error => {
+                                                              console.error('Error:', error);
+                                                            });
+                                
                                                     }}>Save changes</Button>
                                                     </DialogClose>
                                                     </DialogFooter>
@@ -263,7 +293,27 @@ const UsersPage: React.FC = () => {
                                                     </DialogHeader>
                                                     <DialogFooter>
                                                     <DialogClose asChild>
-                                                        <Button type="submit" onClick={()=>{console.log(x.id)}}>Confirm</Button>
+                                                        <Button type="submit" onClick={async()=>{
+                                                            console.log(x.id)
+                                                            await fetch("https://qa6-call-for-duty-global.sprinklr.com/api/pager/users/"+x.id, {
+                                                                method: 'DELETE',
+                                                                headers: {
+                                                                  'Content-Type': 'application/json',
+                                                                },
+                                                              })
+                                                                .then(response => {
+                                                                  if (!response.ok) {
+                                                                    throw new Error(`HTTP error! Status: ${response.status}`);
+                                                                  }
+                                                                })
+                                                                .then(data => {
+                                                                  console.log("Response data:", data);
+                                                                  setUp(new Date().toLocaleTimeString())
+                                                                })
+                                                                .catch(error => {
+                                                                  console.error('Error:', error);
+                                                                });
+                                                        }}>Confirm</Button>
                                                     </DialogClose>
                                                     </DialogFooter>
                                                 </DialogContent>

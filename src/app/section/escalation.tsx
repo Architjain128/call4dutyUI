@@ -30,24 +30,28 @@ import React, { useState, useEffect } from "react";
 const EscalationPage: React.FC = () => {
   const [data, setData] = useState<any>(null);
   const [loading, setLoading] = useState<boolean>(true);
+  const [up,setUp] = useState("")
+
+  const fetchEPData = async () => {
+    try {
+      const response = await fetch("https://qa6-call-for-duty-global.sprinklr.com/api/pager/escalation-policies/all"); // Example API call
+      const result = await response.json();
+      setData(result);
+    } catch (error) {
+      console.error("Error fetching data:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
-    const fetchData = async () => {
-      try {
-        // const response = await fetch("/api/incidents"); // Example API call
-        // const result = await response.json();
-        // setData(result);
-        // const data = await getData()
-        setData(data);
-      } catch (error) {
-        console.error("Error fetching data:", error);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchData();
+    fetchEPData();
   }, []);
+
+
+  useEffect(() => {
+    fetchEPData();
+  }, [up]);
 
   if (loading) {
     return <Loader/>;
@@ -81,7 +85,7 @@ const EscalationPage: React.FC = () => {
                     </TableHeader>
                     <TableBody>
                         {
-                            escalationPolicies.map((x)=>{
+                            data.map((x)=>{
                                 return (
                                     <TableRow>
                                         <TableCell className="font-medium">{x.name}</TableCell>
@@ -103,7 +107,27 @@ const EscalationPage: React.FC = () => {
                                                     </DialogHeader>
                                                     <DialogFooter>
                                                     <DialogClose asChild>
-                                                        <Button type="submit" onClick={()=>{console.log(x.id)}}>Confirm</Button>
+                                                        <Button type="submit" onClick={async()=>{
+                                                          console.log(x.id)
+                                                          await fetch("https://qa6-call-for-duty-global.sprinklr.com/api/pager/escalation-policies/"+x.id, {
+                                                            method: 'DELETE',
+                                                            headers: {
+                                                              'Content-Type': 'application/json',
+                                                            },
+                                                          })
+                                                            .then(response => {
+                                                              if (!response.ok) {
+                                                                throw new Error(`HTTP error! Status: ${response.status}`);
+                                                              }
+                                                            })
+                                                            .then(data => {
+                                                              console.log("Response data:", data);
+                                                              setUp(new Date().toLocaleTimeString())
+                                                            })
+                                                            .catch(error => {
+                                                              console.error('Error:', error);
+                                                            });
+                                                        }}>Confirm</Button>
                                                     </DialogClose>
                                                     </DialogFooter>
                                                 </DialogContent>

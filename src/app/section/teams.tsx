@@ -31,37 +31,78 @@ const TeamsPage: React.FC = () => {
   const [newTeamEscalationPolicy, setNewTeamEscalationPolicy] = useState<string[]>([])
   const [userOptions, setUserOption] = useState<any[]>([])
   const [escaltionPolicyOptions, setEscaltionPolicyOption] = useState<any>([])
+  const [teamData, setTeamData] = useState([])
+  const [userData, setUserData] = useState([])
+  const [epData, setEpData] = useState([])
+  const[up,setUp]= useState("")
+
+
+  const fetchUserData = async () => {
+    try {
+      const response = await fetch("https://qa6-call-for-duty-global.sprinklr.com/api/pager/users/all"); // Example API call
+      const result = await response.json();
+      setUserData(result);
+      let newUserOptions = []
+      result.forEach((x)=>{
+          newUserOptions.push({label:x.name, value:x.id})
+      })
+      setUserOption(newUserOptions)
+    } catch (error) {
+      console.error("Error fetching data:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const fetchTeamData = async () => {
+    try {
+      const response = await fetch("https://qa6-call-for-duty-global.sprinklr.com/api/pager/teams/all"); // Example API call
+      const result = await response.json();
+      setTeamData(result);
+    } catch (error) {
+      console.error("Error fetching data:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+
+  function getFirst(x){
+    console.log(">>", x)
+    if(!x)return "NaN"
+    return x[0].label
+  }
+
+  const fetchEpData = async () => {
+    try {
+      const response = await fetch("https://qa6-call-for-duty-global.sprinklr.com/api/pager/escalation-policies/all"); // Example API call
+      const result = await response.json();
+      setEpData(result);
+      let newEscalationPolicyOptions = []
+      result.forEach((x)=>{
+          newEscalationPolicyOptions.push({label:x.name, value:x.id})
+      })
+      console.log(newEscalationPolicyOptions)
+      setEscaltionPolicyOption(newEscalationPolicyOptions)
+    } catch (error) {
+      console.error("Error fetching data:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
 
   useEffect(() => {
-    const fetchData = async () => {
-      try {
-        // const response = await fetch("/api/incidents"); // Example API call
-        // const result = await response.json();
-        // setData(result);
-        // const data = await getData()
-        setData(data);
-      } catch (error) {
-        console.error("Error fetching data:", error);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchData();
-
-    let newUserOptions = []
-    users.forEach((x)=>{
-        newUserOptions.push({label:x.name, value:x.id})
-    })
-    setUserOption(newUserOptions)
-
-    let newEscalationPolicyOptions = []
-    escalationPolicies.forEach((x)=>{
-        newEscalationPolicyOptions.push({label:x.name, value:x.id})
-    })
-    setEscaltionPolicyOption(newEscalationPolicyOptions)
-
+    fetchUserData()
+    fetchTeamData()
+    fetchEpData()
   }, []);
+
+  useEffect(() => {
+    fetchUserData()
+    fetchTeamData()
+    fetchEpData()
+  }, [up]);
 
   if (loading) {
     return <Loader/>;
@@ -104,14 +145,6 @@ const TeamsPage: React.FC = () => {
                         </div>
                         <div className="grid grid-cols-4 items-center gap-4">
                             <Label htmlFor="username" className="text-right">
-                            Users
-                            </Label>
-                            <div className="col-span-3">
-                                <MultipleSelector options={userOptions} value={newTeamUsers} setValue={setNewTeamUsers}/>
-                            </div>
-                        </div>
-                        <div className="grid grid-cols-4 items-center gap-4">
-                            <Label htmlFor="username" className="text-right">
                             Escaltion Policy
                             </Label>
                             <div className="col-span-3">
@@ -125,7 +158,7 @@ const TeamsPage: React.FC = () => {
                             let newTeamData = {
                                 name: newTeamName,
                                 // users: newTeamUsers,
-                                escaltionPolicy: newTeamEscalationPolicy
+                                escalationPolicyIds: newTeamEscalationPolicy
                             }
                             console.log("new team", newTeamData)
 
@@ -135,7 +168,7 @@ const TeamsPage: React.FC = () => {
                                 headers: {
                                   'Content-Type': 'application/json',
                                 },
-                                body: newTeamData, // Convert data to JSON string
+                                body: JSON.stringify(newTeamData), // Convert data to JSON string
                               })
                                 .then(response => {
                                   if (!response.ok) {
@@ -145,6 +178,8 @@ const TeamsPage: React.FC = () => {
                                 })
                                 .then(data => {
                                   console.log("Response data:", data);
+                                  setUp(new Date().toLocaleTimeString())
+                                  
                                 })
                                 .catch(error => {
                                   console.error('Error:', error);
@@ -162,27 +197,24 @@ const TeamsPage: React.FC = () => {
                     <TableHeader>
                         <TableRow>
                         <TableHead>Name</TableHead>
-                        <TableHead>Users</TableHead>
                         <TableHead>Escaltion Policy</TableHead>
                         <TableHead></TableHead>
                         </TableRow>
                     </TableHeader>
                     <TableBody>
                         {
-                            teams.map((x)=>{
+                            teamData.map((x)=>{
                                 return (
                                     <TableRow>
                                         <TableCell className="font-medium">{x.name}</TableCell>
-                                        <TableCell>{x.users.map((y)=>{return <Badge className="m-1">{y}</Badge>})}</TableCell>
-                                        <TableCell>{x.escaltionPolicy.map((y)=>{return <Badge className="m-1">{y}</Badge>})}</TableCell>
+                                        <TableCell>{x.escalationPolicyIds.map((y)=>{return <Badge className="m-1">{escaltionPolicyOptions.filter((z)=>{return z.value==y})[0].label}</Badge>})}</TableCell>
                                         <TableCell className="text-right">
                                             <Dialog>
                                                 <DialogTrigger asChild>
                                                 <Button variant="secondary" size="sm" className="m-1"
                                                     onClick={()=>{
                                                         setNewTeamName(x.name)
-                                                        setNewTeamUsers(x.users)
-                                                        setNewTeamEscalationPolicy(x.escaltionPolicy)
+                                                        setNewTeamEscalationPolicy(x.escalationPolicyIds)
                                                     }}
                                                 > Edit </Button>
                                                 </DialogTrigger>
@@ -202,14 +234,6 @@ const TeamsPage: React.FC = () => {
                                                     </div>
                                                     <div className="grid grid-cols-4 items-center gap-4">
                                                         <Label htmlFor="username" className="text-right">
-                                                        Users
-                                                        </Label>
-                                                        <div className="col-span-3">
-                                                            <MultipleSelector options={userOptions} value={newTeamUsers} setValue={setNewTeamUsers}/>
-                                                        </div>
-                                                    </div>
-                                                    <div className="grid grid-cols-4 items-center gap-4">
-                                                        <Label htmlFor="username" className="text-right">
                                                         Escaltion Policy
                                                         </Label>
                                                         <div className="col-span-3">
@@ -219,14 +243,33 @@ const TeamsPage: React.FC = () => {
                                                     </div>
                                                     <DialogFooter>
                                                     <DialogClose asChild>
-                                                    <Button type="submit" onClick={()=>{
+                                                    <Button type="submit" onClick={async()=>{
                                                         let newTeamData = {
-                                                            id: x.id,
+                                                            // id: x.id,
                                                             name: newTeamName,
-                                                            users: newTeamUsers,
-                                                            escaltionPolicy: newTeamEscalationPolicy
+                                                            // users: newTeamUsers,
+                                                            escalationPolicyIds: newTeamEscalationPolicy
                                                         }
                                                         console.log("edit team", newTeamData)
+                                                        await fetch("https://qa6-call-for-duty-global.sprinklr.com/api/pager/teams/"+x.id, {
+                                                            method: 'PATCH',
+                                                            headers: {
+                                                              'Content-Type': 'application/json',
+                                                            },
+                                                            body: JSON.stringify(newTeamData)
+                                                          })
+                                                            .then(response => {
+                                                              if (!response.ok) {
+                                                                throw new Error(`HTTP error! Status: ${response.status}`);
+                                                              }
+                                                            })
+                                                            .then(data => {
+                                                              console.log("Response data:", data);
+                                                              setUp(new Date().toLocaleTimeString())
+                                                            })
+                                                            .catch(error => {
+                                                              console.error('Error:', error);
+                                                            });
                                                     }}>Save changes</Button>
                                                     </DialogClose>
                                                     </DialogFooter>
@@ -248,7 +291,27 @@ const TeamsPage: React.FC = () => {
                                                     </DialogHeader>
                                                     <DialogFooter>
                                                     <DialogClose asChild>
-                                                        <Button type="submit" onClick={()=>{console.log(x.id)}}>Confirm</Button>
+                                                        <Button type="submit" onClick={async()=>{
+                                                            console.log(x.id)
+                                                            await fetch("https://qa6-call-for-duty-global.sprinklr.com/api/pager/teams/"+x.id, {
+                                                                method: 'DELETE',
+                                                                headers: {
+                                                                  'Content-Type': 'application/json',
+                                                                },
+                                                              })
+                                                                .then(response => {
+                                                                  if (!response.ok) {
+                                                                    throw new Error(`HTTP error! Status: ${response.status}`);
+                                                                  }
+                                                                })
+                                                                .then(data => {
+                                                                  console.log("Response data:", data);
+                                                                  setUp(new Date().toLocaleTimeString())
+                                                                })
+                                                                .catch(error => {
+                                                                  console.error('Error:', error);
+                                                                });
+                                                    }}>Confirm</Button>
                                                     </DialogClose>
                                                     </DialogFooter>
                                                 </DialogContent>

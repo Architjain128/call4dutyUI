@@ -59,6 +59,7 @@ export default function EscalationFormPage({newEntry} : EscalationFormPageProps)
   const [data, setData] = useState<any>(null);
   const [loading, setLoading] = useState<boolean>(true);
   const [newEP, setNewEP] = useState(preprocess());
+  const [sch, setSch] = useState([]);
 
 
   function preprocess() {
@@ -75,22 +76,22 @@ export default function EscalationFormPage({newEntry} : EscalationFormPageProps)
 
   }
 
-  useEffect(() => {
-    const fetchData = async () => {
-      try {
-        // const response = await fetch("/api/incidents"); // Example API call
-        // const result = await response.json();
-        // setData(result);
-        // const data = await getData()
-        setData(data);
-      } catch (error) {
-        console.error("Error fetching data:", error);
-      } finally {
-        setLoading(false);
-      }
-    };
 
-    fetchData();
+  const fetchSchData = async () => {
+    try {
+      const response = await fetch("https://qa6-call-for-duty-global.sprinklr.com/api/pager/schedules/all"); // Example API call
+      const result = await response.json();
+      console.log(result)
+      setSch(result);
+    } catch (error) {
+      console.error("Error fetching data:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchSchData();
   }, []);
 
   if (loading) {
@@ -108,7 +109,64 @@ export default function EscalationFormPage({newEntry} : EscalationFormPageProps)
                 newEntry ? "New Escalation Policy" : "Edit Escalation Policy"
             }
             <div></div>
-           <Button onClick={()=>{}}>Save Changes</Button>
+           <Button onClick={async()=>{
+
+                let ep = {
+                    name: newEP.name,
+                    description: newEP.description
+                }
+
+
+
+                const createResponse = await fetch(
+                    "https://qa6-call-for-duty-global.sprinklr.com/api/pager/escalation-policies", 
+                    {
+                      method: 'POST',
+                      headers: {
+                        'Content-Type': 'application/json',
+                      },
+                      body: JSON.stringify(ep)
+                    }
+                  );
+              
+                  // Check if the response is not ok
+                  if (!createResponse.ok) {
+                    throw new Error(`HTTP error! Status: ${createResponse.status}`);
+                  }
+              
+                  // Parse the response to get the policy ID
+                  const createdPolicy = await createResponse.json();
+                  const policyId = createdPolicy.id;
+              
+                  newEP.levels.map(async(yy,idx)=>{
+                    let el={
+                        escalationPolicyId: policyId,
+                        level: idx,
+                        scheduleId: yy.scheduleId
+                    }
+
+                    const detailsResponse = await fetch(
+                        `https://qa6-call-for-duty-global.sprinklr.com/api/pager/escalation-levels`,
+                        {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                            },
+                            body: JSON.stringify(el)
+                        }
+                    );
+                    if (!detailsResponse.ok) {
+                        throw new Error(`HTTP error fetching details! Status: ${detailsResponse.status}`);
+                      }
+                  
+                      // Parse and return the details
+                      const policyDetails = await detailsResponse.json();
+                  })
+              
+                  window.location.pathname = "/escaltionPolicy"
+            }}>
+                Save Changes
+            </Button>
            <div></div>
         </div>
         <div className="grid grid-cols-4 gap-8 p-2">
@@ -120,10 +178,6 @@ export default function EscalationFormPage({newEntry} : EscalationFormPageProps)
                 <div>
                     <Label>Description</Label>
                     <Input id="name" className="col-span-3" value={newEP.description} onChange={(e)=>updateNewEP(e.target.value, "description")} />
-                </div>
-                <div>
-                    <Label>Retry Routine Count</Label>
-                    <Input id="name" className="col-span-3" value={newEP.retryTime} onChange={(e)=>updateNewEP(e.target.value, "retryTime")} />
                 </div>
                 <br/>
                 <div className="flex justify-end">
@@ -160,28 +214,11 @@ export default function EscalationFormPage({newEntry} : EscalationFormPageProps)
                                         <SelectContent>
                                             <SelectItem value=" ">None</SelectItem>
                                             {
-                                                schedules.map((x)=><SelectItem value={x.id}>{x.name}</SelectItem>)
+                                                sch.map((x)=><SelectItem value={x.id}>{x.name}</SelectItem>)
                                             }
                                         </SelectContent>
                                     </Select>
                                     </div>
-                                </div>
-                                <div>
-                                    <Label>Retry Same User in minutes</Label>
-                                    <Input
-                                        id="name"
-                                        className="col-span-3"
-                                        value={newEP.levels[idx].gapOnRetry}
-                                        onChange={(e) => {
-                                            const { value } = e.target;
-                                            setNewEP((prev) => ({
-                                            ...prev,
-                                            levels: prev.levels.map((level, i) =>
-                                                i === idx ? { ...level, gapOnRetry: value } : level
-                                            ),
-                                            }));
-                                        }}
-                                    />
                                 </div>
                                 </CardContent>
                     

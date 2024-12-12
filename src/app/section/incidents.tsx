@@ -33,56 +33,130 @@ async function getData(): Promise<Incidents[]> {
 }
 
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
+import { teams } from "@/data/dummydata";
 
 const IncidentPage: React.FC = () => {
-  const [data, setData] = useState<any>(null);
-  const [loading, setLoading] = useState<boolean>(true);
+  // const [data, setData] = useState<any>(null);
+  const [userOptions, setUserOptions] = useState<any[]>([]);
+  const [escalationPolicyOptions, setEscalationPolicyOptions] = useState<any[]>([]);
+  const [teamData, setTeamData] = useState<any[]>([]);
+  const [userData, setUserData] = useState<any[]>([]);
+  const [epData, setEpData] = useState<any[]>([]);
+  const [serviceData, setServiceData] = useState<any[]>([]);
+  const [data, setData] = useState<any[]>([]);
+  const [up, setUp] = useState("");
+  const [loading, setLoading] = useState(true);
 
+  // Memoize fetch functions to prevent recreation on every render
+  const fetchEpData = useCallback(async () => {
+    try {
+      const response = await fetch("https://qa6-call-for-duty-global.sprinklr.com/api/pager/escalation-policies/all");
+      const result = await response.json();
+      setEpData(result);
+      return result;
+    } catch (error) {
+      console.error("Error fetching escalation policies:", error);
+      return [];
+    }
+  }, []); // Empty dependency array
+
+  const fetchTeamData = useCallback(async () => {
+    try {
+      const response = await fetch("https://qa6-call-for-duty-global.sprinklr.com/api/pager/teams/all");
+      const result = await response.json();
+      setTeamData(result);
+      return result;
+    } catch (error) {
+      console.error("Error fetching teams:", error);
+      return [];
+    }
+  }, []); // Empty dependency array
+
+  const fetchServicesData = useCallback(async () => {
+    try {
+      const response = await fetch("https://qa6-call-for-duty-global.sprinklr.com/api/pager/services/all");
+      const result = await response.json();
+      setServiceData(result);
+      return result;
+    } catch (error) {
+      console.error("Error fetching services:", error);
+      return [];
+    }
+  }, []); // Empty dependency array
+
+  const fetchData = useCallback(async () => {
+    try {
+      const response = await fetch("https://qa6-call-for-duty-global.sprinklr.com/api/pager/incidents/all");
+      const result = await response.json();
+      return result;
+    } catch (error) {
+      console.error("Error fetching incidents:", error);
+      return [];
+    }
+  }, []); // Empty dependency array
+
+  // Memoize preprocessing to prevent unnecessary recalculations
+  const preprocessData = useCallback((fetchedData, services, teamData) => {
+    if (!fetchedData || !services || !teamData) return [];
+
+    return fetchedData.map((x) => {
+      const service = services.find((z) => 
+        x.currentAssignment?.impactedServiceId === z.id
+      );
+      const team = teamData.find((z) => 
+        x.id === service.teamId
+      );
+
+      return {
+        id: x.id,
+        title: x.title,
+        service: service?.name || 'Unknown',
+        createdAt: x.createdTime,
+        priority: x.priority, // Add priority logic if needed
+        status: x.status,
+        team: team?.name || 'Unknown', // Add team logic if needed
+      };
+    });
+  }, []); // Empty dependency array
+
+  // Use a single useEffect with a flag to prevent multiple fetches
   useEffect(() => {
+    let isMounted = true;
 
-
-
-    const corsProxy = 'http://localhost:8080/';
-    const apiUrl = BK_URL;
-    
-
-
-    const fetchData = async () => {
+    const fetchAllData = async () => {
       try {
-        // const response = await fetch("/api"); // Example API call
-        // const result = await response
-        // console.log(result);
-        // setData(result);
-
-        fetch("https://qa6-call-for-duty-global.sprinklr.com/api/pager/users", {
-          method: 'POST',  // or 'POST', depending on your request type
-          headers: {
-            'Content-Type': 'application/json',  // Ensure content type is correct
-            'X-Requested-With': 'XMLHttpRequest',  // Add this header
-            'Origin': "http://localhost:5173",
-            'Access-Control-Allow-Origin':"*"  // Origin of your frontend app
-          },
-          mode:'no-cors'
-        })
-        .then(response => console.log("dsf", response))
-        .then(data => console.log("dsf", data))
-        .catch(error => console.error('Error:', error));
-  
+        setLoading(true);
         
+        // Fetch all data concurrently
+        const [incidentData, , servicesData, teamData] = await Promise.all([
+          fetchData(),
+          fetchEpData(),
+          fetchServicesData(),
+          fetchTeamData()
+        ]);
 
-
-        const data = await getData()
-        setData(data);
+        // Only update state if component is still mounted
+        if (isMounted) {
+          const processedData = preprocessData(incidentData, servicesData, teamData);
+          setData(processedData);
+          setLoading(false);
+        }
       } catch (error) {
-        console.error("Error fetching data:", error);
-      } finally {
-        setLoading(false);
+        console.error("Error in data fetching:", error);
+        if (isMounted) {
+          setLoading(false);
+        }
       }
     };
 
-    fetchData();
-  }, []);
+    fetchAllData();
+
+    // Cleanup function to prevent state updates on unmounted component
+    return () => {
+      isMounted = false;
+    };
+  }, []); // Empty dependency array to run only once
 
   if (loading) {
     return <Loader/>;
